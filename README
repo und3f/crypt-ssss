@@ -49,6 +49,8 @@ ATTRIBUTES
     Distribute $message to $n shares, so that any $k shares would be enough
     to reconstruct the secret. $p is a prime number.
 
+    Returns hashref of Crypt::SSSS::Message.
+
   "ssss_reconstruct"
         my $secret = ssss_reconstruct($p, $messages);
 

@@ -173,6 +173,8 @@ Crypt::SSSS implements the following attributes.
 Distribute C<$message> to C<$n> shares, so that any C<$k> shares would be
 enough to reconstruct the secret. C<$p> is a prime number.
 
+Returns hashref of Crypt::SSSS::Message.
+
 =head2 C<ssss_reconstruct>
 
     my $secret = ssss_reconstruct($p, $messages);
