@@ -52,7 +52,7 @@ sub ssss_distribute(%) {
     $messages;
 }
 
-sub ssss_reconstruct($$$;$) {
+sub ssss_reconstruct($$;$) {
     my ($p, $messages, $size) = @_;
 
     my @xs = keys %$messages;
