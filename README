@@ -1,0 +1,43 @@
+NAME
+    TSS - Shamir's Threshold Sharing System implementation.
+
+SYNOPSIS
+        use TSS;
+
+        # use (3, 3) scheme
+        my $shares = TSS::tss_distribute(
+            message => "\x06\x1c\x08",
+            k       => 3,
+            n       => 3,
+            p       => 257);
+
+        # Save shares
+        for my $share (1..3) {
+            open my $fh, '>', "share${share}.dat";
+            print $fh $shares->{$share}->binary;
+            close $fh;
+        }
+
+        # Reconstruct message
+        my $ishares = {};
+        for my $share (1..3) {
+            open my $fh, '<', "share${share}.dat";
+            $ishares->{$share} = do {
+                local $/; # slurp!
+                <$fh>;
+            };
+            close $fh;
+        }
+
+        print "Original message: ", sprintf '"\x%02x\x%02x\x%02x"',
+            unpack('C*', TSS::tss_reconstruct(3, 257, $ishares));
+
+AUTHOR
+    Sergey Zasenko, "undef@cpan.org".
+
+COPYRIGHT AND LICENSE
+    Copyright (C) 2011, Sergey Zasenko.
+
+    This program is free software, you can redistribute it and/or modify it
+    under the same terms as Perl 5.10.
+
