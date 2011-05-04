@@ -8,16 +8,15 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    NAME          => 'TSS',
+    NAME          => 'Crypt::SSSS',
     AUTHOR        => 'Sergey Zasenko <undef@cpan.org>',
     LICENSE       => 'perl',
-    ABSTRACT_FROM => 'lib/TSS.pm',
-    VERSION_FROM  => 'lib/TSS.pm',
+    ABSTRACT_FROM => 'lib/Crypt/SSSS.pm',
+    VERSION_FROM  => 'lib/Crypt/SSSS.pm',
 
     BUILD_REQUIRES => {'Test::More' => '0.88'},
     PREREQ_PM      => {
         'Math::Polynom' => 0,
-        'Math::BigInt'  => 0,
     },
     META_MERGE =>
       {resources => {repository => 'http://github.com/und3f/tss',}}

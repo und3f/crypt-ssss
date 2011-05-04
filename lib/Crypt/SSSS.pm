@@ -1,18 +1,22 @@
-package TSS;
+package Crypt::SSSS;
 
 use strict;
 use warnings;
 
 our $VERSION = 0.1;
 
-use Math::BigInt  ();
-use Math::Polynom ();
+require Exporter;
+
+our @ISA = qw(Exporter);
+our @EXPORT = qw(ssss_distribute ssss_reconstruct);
+
 use POSIX qw(ceil pow);
-use TSS::Message  ();
+use Math::Polynom;
+use Crypt::SSSS::Message;
 
 require Carp;
 
-sub tss_distribute {
+sub ssss_distribute(%) {
     my (%data) = @_;
 
     my $message = $data{message} or Carp::croak 'Missed "message" argument';
@@ -25,7 +29,7 @@ sub tss_distribute {
     my $messages = {};
 
     for my $x (1 .. $n) {
-        $messages->{$x} = TSS::Message->new(p => $p);
+        $messages->{$x} = Crypt::SSSS::Message->new(p => $p);
     }
 
     my @args = unpack 'C*', $message;
@@ -48,18 +52,18 @@ sub tss_distribute {
     $messages;
 }
 
-sub tss_reconstruct {
-    my ($k, $p, $messages, $size) = @_;
-
-    Carp::croak "Need at least $k messages" if (keys %$messages < $k);
-
+sub ssss_reconstruct($$$;$) {
+    my ($p, $messages, $size) = @_;
 
     my @xs = keys %$messages;
+
+    my $k = @xs;
 
     my %mdata;
     foreach my $x (@xs) {
         $mdata{$x} =
-          TSS::Message->build_from_binary($p, $messages->{$x})->get_data;
+          Crypt::SSSS::Message->build_from_binary($p, $messages->{$x})
+          ->get_data;
     }
 
     $size ||= @{(values %mdata)[0]};
@@ -115,14 +119,14 @@ __END__
 
 =head1 NAME
 
-TSS - Shamir's Threshold Sharing System implementation.
+Crypt::SSSS - implementation of Shamir's Secret Sharing System.
 
 =head1 SYNOPSIS
 
-    use TSS;
+    use Crypt::SSSS;
 
     # use (3, 3) scheme
-    my $shares = TSS::tss_distribute(
+    my $shares = ssss_distribute(
         message => "\x06\x1c\x08",
         k       => 3,
         n       => 3,
@@ -147,7 +151,34 @@ TSS - Shamir's Threshold Sharing System implementation.
     }
 
     print "Original message: ", sprintf '"\x%02x\x%02x\x%02x"',
-        unpack('C*', TSS::tss_reconstruct(3, 257, $ishares));
+        unpack('C*', ssss_reconstruct(257, $ishares));
+
+=head1 DESCRIPTION
+
+Implementation of Shamir's Secret Sharing Scheme.
+
+=head1 ATTRIBUTES
+
+Crypt::SSSS implements the following attributes.
+
+=head2 C<ssss_distribute>
+
+    my $messages = ssss_distribute(
+        message => $message,
+        p       => $p,
+        k       => $k,
+        n       => $n, # By default equals to k
+    );
+
+Distribute C<$message> to C<$n> shares, so that any C<$k> shares would be
+enough to reconstruct the secret. C<$p> is a prime number.
+
+=head2 C<ssss_reconstruct>
+
+    my $secret = ssss_reconstruct($p, $messages);
+
+Reconstruct message from given C<$messages>. C<$p> is a prime number used to
+distribute message.
 
 =head1 AUTHOR
 

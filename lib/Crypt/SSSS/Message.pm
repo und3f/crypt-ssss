@@ -1,4 +1,4 @@
-package TSS::Message;
+package Crypt::SSSS::Message;
 
 use strict;
 use warnings;
