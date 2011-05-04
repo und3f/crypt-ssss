@@ -40,7 +40,7 @@ sub ssss_distribute(%) {
 
             my $res = 0;
             for my $pow (0 .. $k - 1) {
-                $res += $a[$pow] * pow($x, $pow);
+                $res += ($a[$pow]||0) * pow($x, $pow);
 
             }
 
