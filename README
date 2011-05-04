@@ -1,11 +1,11 @@
 NAME
-    TSS - Shamir's Threshold Sharing System implementation.
+    Crypt::SSSS - implementation of Shamir's Secret Sharing System.
 
 SYNOPSIS
-        use TSS;
+        use Crypt::SSSS;
 
         # use (3, 3) scheme
-        my $shares = TSS::tss_distribute(
+        my $shares = ssss_distribute(
             message => "\x06\x1c\x08",
             k       => 3,
             n       => 3,
@@ -30,7 +30,30 @@ SYNOPSIS
         }
 
         print "Original message: ", sprintf '"\x%02x\x%02x\x%02x"',
-            unpack('C*', TSS::tss_reconstruct(3, 257, $ishares));
+            unpack('C*', ssss_reconstruct(257, $ishares));
+
+DESCRIPTION
+    Implementation of Shamir's Secret Sharing Scheme.
+
+ATTRIBUTES
+    Crypt::SSSS implements the following attributes.
+
+  "ssss_distribute"
+        my $messages = ssss_distribute(
+            message => $message,
+            p       => $p,
+            k       => $k,
+            n       => $n, # By default equals to k
+        );
+
+    Distribute $message to $n shares, so that any $k shares would be enough
+    to reconstruct the secret. $p is a prime number.
+
+  "ssss_reconstruct"
+        my $secret = ssss_reconstruct($p, $messages);
+
+    Reconstruct message from given $messages. $p is a prime number used to
+    distribute message.
 
 AUTHOR
     Sergey Zasenko, "undef@cpan.org".
