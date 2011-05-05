@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 15;
 
 use_ok 'Crypt::SSSS';
 can_ok 'Crypt::SSSS', qw(ssss_distribute ssss_reconstruct);
@@ -79,4 +79,17 @@ is Crypt::SSSS::ssss_reconstruct(
     $p, {map { $_ => $messages->{$_}->binary } keys %$messages}
   ),
   "\x06\x07\x08\x09\x10", "k = 5 distribute/reconstruct";
+
+$messages = Crypt::SSSS::ssss_distribute(
+    message => "\x06\x07\x08\x09",
+    k       => 2,
+    p       => 65537,
+);
+
+$p = (values %$messages)[0]->get_p;
+
+is Crypt::SSSS::ssss_reconstruct(
+    $p, {map { $_ => $messages->{$_}->binary } keys %$messages}
+  ),
+  "\x06\x07\x08\x09", "p = 65537 distribute/reconstruct";
 
