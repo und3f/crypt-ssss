@@ -11,7 +11,6 @@ our @ISA = qw(Exporter);
 our @EXPORT = qw(ssss_distribute ssss_reconstruct);
 
 use POSIX qw(ceil pow);
-use Math::Polynom;
 use Crypt::SSSS::Message;
 
 require Carp;
@@ -71,13 +70,21 @@ sub ssss_reconstruct($$;$) {
     my $message = '';
 
     for (my $l = 0; $l < $size; $l++) {
-        my $fx = Math::Polynom->new(0 => 0);
+        my @fx = ();
         for my $i (@xs) {
-            my $pl = Math::Polynom->new(0 => 1);
+            # Plynom
+            my @pl = (1);
+
+            # Divider
             my $d = 1;
             for my $j (@xs) {
                 if ($j != $i) {
-                    $pl = $pl->multiply(Math::Polynom->new(1 => 1, 0 => -$j));
+                    # Multiply polinoms
+                    my @opl = @pl;
+                    unshift @pl, 0;
+                    for (my $i = 0; $i < @opl; $i++) {
+                        $pl[$i] += - $j * $opl[$i];
+                    }
                     $d *= $i - $j;
                 }
             }
@@ -86,16 +93,22 @@ sub ssss_reconstruct($$;$) {
             my ($m) = extended_gcb($d, $p);
             $m += $p if $m < 0;
 
-            $fx = $fx->add($pl->multiply($m * $mdata{$i}->[$l]));
+            while (@fx < @pl) {
+                push @fx, 0;
+            }
+            # Add our polynom (multiplied by constant)
+            for (my $j = 0; $j < @pl; $j++) {
+                $fx[$j] += $m * $mdata{$i}->[$l] * $pl[$j];
+            }
         }
 
-        for (values %{$fx->{polynom}}) {
+        for (@fx) {
             $_ %= $p;
             $_ += $p if $_ < 0;
         }
 
         for (my $i = 0; $i < $k; $i++) {
-            $message .= pack 'C', $fx->{polynom}->{$i};
+            $message .= pack 'C', $fx[$i];
         }
     }
 

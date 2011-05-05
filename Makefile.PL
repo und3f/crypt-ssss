@@ -15,9 +15,7 @@ WriteMakefile(
     VERSION_FROM  => 'lib/Crypt/SSSS.pm',
 
     BUILD_REQUIRES => {'Test::More' => '0.88'},
-    PREREQ_PM      => {
-        'Math::Polynom' => 0,
-    },
+    PREREQ_PM      => {},
     META_MERGE =>
       {resources => {repository => 'http://github.com/und3f/tss',}}
 );

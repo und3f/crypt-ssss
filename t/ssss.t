@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 13;
+use Test::More tests => 14;
 
 use_ok 'Crypt::SSSS';
 can_ok 'Crypt::SSSS', qw(ssss_distribute ssss_reconstruct);
@@ -29,7 +29,7 @@ is_deeply [
             $p,
             {   2 => $messages->{2}->binary,
                 3 => $messages->{3}->binary,
-                4 => $messages->{4}->binary
+                5 => $messages->{5}->binary
             },
             1
         )
@@ -66,3 +66,17 @@ is_deeply [
     )
   ],
   [0x06, 0x1c, 0x08, 0x0b, 0x1f, 0x4a], 'original messages reconstructed';
+
+$messages = Crypt::SSSS::ssss_distribute(
+    message => "\x06\x07\x08\x09\x10",
+    k       => 5,
+    p       => 257
+);
+
+$p = (values %$messages)[0]->get_p;
+
+is Crypt::SSSS::ssss_reconstruct(
+    $p, {map { $_ => $messages->{$_}->binary } keys %$messages}
+  ),
+  "\x06\x07\x08\x09\x10", "k = 5 distribute/reconstruct";
+
