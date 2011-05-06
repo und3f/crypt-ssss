@@ -70,7 +70,7 @@ sub binary {
         my $chunk = $rdata << $size | $lchunk;
         $size += $rsize;
 
-        while ($size > 8) {
+        while ($size >= 8) {
             $size -= 8;
             my $mask = 0xff << $size;
 
@@ -83,7 +83,7 @@ sub binary {
         $rdata = $chunk;
     }
 
-    $str .= pack 'C', ($rdata << 8 - $rsize);
+    $str .= pack 'C', ($rdata << 8 - $rsize) if $rsize;
 
     $str;
 }
@@ -103,11 +103,12 @@ sub get_p {
 sub _sig_bit {
     my $x = shift;
 
-    for (my $i = 0; $i < 32; $i++) {
-        return $i
-          if $x < (1 << $i);
-    }
-    return;
+    my $i = 0;
+    while ($x) {
+        $x >>= 1;
+        $i++;
+    };
+    $i;
 }
 
 sub _determine_chunk_size {
