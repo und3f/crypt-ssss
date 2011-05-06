@@ -7,7 +7,7 @@ our $VERSION = 0.1;
 
 require Exporter;
 
-our @ISA = qw(Exporter);
+our @ISA    = qw(Exporter);
 our @EXPORT = qw(ssss_distribute ssss_reconstruct);
 
 use POSIX qw(ceil pow);
@@ -23,55 +23,69 @@ sub ssss_distribute(%) {
     my $k = $data{k} or Carp::croak 'Missed "k" argument';
     my $n = $data{n} || $k;
 
-    my $p = $data{p} or Carp::croak 'Missed "p" argument';
+    my $p = $data{p} || 257;
 
-    my $messages = {};
+    my $shares = {};
 
     for my $x (1 .. $n) {
-        $messages->{$x} = Crypt::SSSS::Message->new(p => $p);
+        $shares->{$x} = Crypt::SSSS::Message->new(p => $p);
     }
 
-    my @args = unpack 'C*', $message;
-    while (@args) {
-        my @a = splice @args, 0, $k;
+    my $chunks;
+    if (my $ref = ref $message) {
+        Carp::croak qw/"message" has unsupported type "$ref"/
+          unless $ref eq 'Crypt::SSSS::Message';
+
+        $chunks = $message->get_data;
+    }
+    else {
+        $chunks = [unpack (($data{pack_size} || 'C') . '*', $message)];
+    }
+    while (@$chunks) {
+        my @a = splice @$chunks, 0, $k;
 
         for my $x (1 .. $n) {
 
             my $res = 0;
             for my $pow (0 .. $k - 1) {
-                $res += ($a[$pow]||0) * pow($x, $pow);
+                $res += ($a[$pow] || 0) * pow($x, $pow);
 
             }
 
             # print "$x → ", $res % $p, "\n";
-            $messages->{$x}->push_data($res % $p);
+            $shares->{$x}->push_data($res % $p);
         }
     }
 
-    $messages;
+    $shares;
 }
 
-sub ssss_reconstruct($$;$) {
-    my ($p, $messages, $size) = @_;
+sub ssss_reconstruct(%) {
+    my (%data) = @_;
 
-    my @xs = keys %$messages;
+    my $shares = $data{shares};
+    my $p = $data{p} || '257';
 
+    my @xs = keys %$shares;
     my $k = @xs;
 
     my %mdata;
     foreach my $x (@xs) {
         $mdata{$x} =
-          Crypt::SSSS::Message->build_from_binary($p, $messages->{$x})
+          Crypt::SSSS::Message->build_from_binary($p, $shares->{$x})
           ->get_data;
     }
 
-    $size ||= @{(values %mdata)[0]};
+    my $size = $data{size} || @{(values %mdata)[0]};
 
     my $message = '';
+
+    my $pack_size = $data{pack_size} || 'C';
 
     for (my $l = 0; $l < $size; $l++) {
         my @fx = ();
         for my $i (@xs) {
+
             # Plynom
             my @pl = (1);
 
@@ -79,11 +93,12 @@ sub ssss_reconstruct($$;$) {
             my $d = 1;
             for my $j (@xs) {
                 if ($j != $i) {
+
                     # Multiply polinoms
                     my @opl = @pl;
                     unshift @pl, 0;
                     for (my $i = 0; $i < @opl; $i++) {
-                        $pl[$i] += - $j * $opl[$i];
+                        $pl[$i] += -$j * $opl[$i];
                     }
                     $d *= $i - $j;
                 }
@@ -96,6 +111,7 @@ sub ssss_reconstruct($$;$) {
             while (@fx < @pl) {
                 push @fx, 0;
             }
+
             # Add our polynom (multiplied by constant)
             for (my $j = 0; $j < @pl; $j++) {
                 $fx[$j] += $m * $mdata{$i}->[$l] * $pl[$j];
@@ -108,7 +124,7 @@ sub ssss_reconstruct($$;$) {
         }
 
         for (my $i = 0; $i < $k; $i++) {
-            $message .= pack 'C', $fx[$i];
+            $message .= pack $pack_size, $fx[$i];
         }
     }
 
@@ -142,11 +158,10 @@ Crypt::SSSS - implementation of Shamir's Secret Sharing System.
     my $shares = ssss_distribute(
         message => "\x06\x1c\x08",
         k       => 3,
-        n       => 3,
-        p       => 257);
+    );
 
     # Save shares
-    for my $share (1..3) {
+    for my $share (1 .. 3) {
         open my $fh, '>', "share${share}.dat";
         print $fh $shares->{$share}->binary;
         close $fh;
@@ -154,17 +169,17 @@ Crypt::SSSS - implementation of Shamir's Secret Sharing System.
 
     # Reconstruct message
     my $ishares = {};
-    for my $share (1..3) {
+    for my $share (1 .. 3) {
         open my $fh, '<', "share${share}.dat";
         $ishares->{$share} = do {
-            local $/; # slurp!
+            local $/;    # slurp!
             <$fh>;
         };
         close $fh;
     }
 
     print "Original message: ", sprintf '"\x%02x\x%02x\x%02x"',
-        unpack('C*', ssss_reconstruct(257, $ishares));
+      unpack('C*', ssss_reconstruct(p => 257, shares => $ishares));
 
 =head1 DESCRIPTION
 
@@ -176,11 +191,11 @@ Crypt::SSSS implements the following attributes.
 
 =head2 C<ssss_distribute>
 
-    my $messages = ssss_distribute(
+    my $shares = ssss_distribute(
         message => $message,
-        p       => $p,
         k       => $k,
-        n       => $n, # By default equals to k
+        p       => $p,         # 257 by default
+        n       => $n,         # By default equals to k
     );
 
 Distribute C<$message> to C<$n> shares, so that any C<$k> shares would be
@@ -190,9 +205,12 @@ Returns hashref of Crypt::SSSS::Message.
 
 =head2 C<ssss_reconstruct>
 
-    my $secret = ssss_reconstruct($p, $messages);
+    my $secret = ssss_reconstruct(
+        shares => $shares,
+        p      => $p,        # 257 by default
+    );
 
-Reconstruct message from given C<$messages>. C<$p> is a prime number used to
+Reconstruct message from given C<$shares>. C<$p> is a prime number used to
 distribute message.
 
 =head1 AUTHOR
