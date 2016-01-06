@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More;
 
 use_ok 'Crypt::SSSS::Message';
 my $m = new_ok 'Crypt::SSSS::Message', [p => 257];
@@ -42,9 +42,8 @@ is_deeply Crypt::SSSS::Message->build_from_binary($m->get_p, $m->binary)
 $m = new_ok 'Crypt::SSSS::Message', [p => 4294967311];
 $m->push_data(0xffffffff);
 $m->push_data(0x16161616);
-is_deeply [unpack 'C*', $m->binary],
-    [0xff, 0xff, 0xff, 0xff, 0x16, 0x16, 0x16, 0x16];
 is_deeply Crypt::SSSS::Message->build_from_binary($m->get_p, $m->binary)
   ->get_data,
   [0xffffffff, 0x16161616], 'P=4294967311';
 
+done_testing;
