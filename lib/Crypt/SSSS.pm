@@ -3,7 +3,7 @@ package Crypt::SSSS;
 use strict;
 use warnings;
 
-our $VERSION = 0.1;
+our $VERSION = 0.2;
 
 require Exporter;
 
@@ -216,6 +216,14 @@ distribute message.
 =head1 AUTHOR
 
 Sergey Zasenko, C<undef@cpan.org>.
+
+=head1 CREDITS
+
+=over 2
+
+Mohammad S Anwar (Manwar)
+
+=back
 
 =head1 COPYRIGHT AND LICENSE
 
