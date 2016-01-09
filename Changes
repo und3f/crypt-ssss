@@ -1,6 +1,10 @@
 This file documents the revision history for Perl extension Protocol::Redis
 
-0.2  2016-01-08 00:00:00,be
+0.3  0000-00-00 00:00:00
+        - Makefile.PL fixups (Manwar, und3f)
+        - Changes fixup
+
+0.2  2016-01-08 00:00:00
         - fixed repository url (Manwar)
 
 0.1  2016.01-06 00:00:00
