@@ -221,7 +221,7 @@ Sergey Zasenko, C<undef@cpan.org>.
 
 =over 2
 
-Mohammad S Anwar (Manwar)
+=item Mohammad S Anwar (MANWAR)
 
 =back
 
