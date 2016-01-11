@@ -7,7 +7,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME          => 'Crypt::SSSS',
-    AUTHOR        => 'Sergey Zasenko <undef@cpan.org>',
+    AUTHOR        => 'Sergey Zasenko <UNDEF@cpan.org>',
     LICENSE       => 'perl',
     ABSTRACT_FROM => 'lib/Crypt/SSSS.pm',
     VERSION_FROM  => 'lib/Crypt/SSSS.pm',
