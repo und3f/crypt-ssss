@@ -14,7 +14,15 @@ WriteMakefile(
 
     BUILD_REQUIRES => {'Test::More' => '0.88'},
     PREREQ_PM      => {},
-    clean => { FILES => 'Crypt-SSSS-*' },
+    clean          => {FILES        => 'Crypt-SSSS-*'},
     META_MERGE =>
       {resources => {repository => 'http://github.com/und3f/crypt-ssss',}}
 );
+
+sub MY::postamble {
+    my $self = shift;
+    return <<"END"
+readme:
+\t/usr/bin/env pod2text $self->{ABSTRACT_FROM} > README
+END
+}
