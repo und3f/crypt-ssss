@@ -150,10 +150,6 @@ __END__
 
 Crypt::SSSS - implementation of Shamir's Secret Sharing System.
 
-=head1 VERSION
-
-Version 0.3 
-
 =head1 SYNOPSIS
 
     use Crypt::SSSS;
