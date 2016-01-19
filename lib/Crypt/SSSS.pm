@@ -150,6 +150,10 @@ __END__
 
 Crypt::SSSS - implementation of Shamir's Secret Sharing System.
 
+=head1 VERSION
+
+Version 0.3 
+
 =head1 SYNOPSIS
 
     use Crypt::SSSS;
@@ -224,6 +228,10 @@ Sergey Zasenko, C<undef@cpan.org>.
 =item Mohammad S Anwar (MANWAR)
 
 =back
+
+=head1 REPOSITORY
+
+L<https://github.com/und3f/crypt-ssss>
 
 =head1 COPYRIGHT AND LICENSE
 
