@@ -1,0 +1,279 @@
+#!/usr/bin/env perl
+# -*- mode: cperl; mode: follow -*-
+#
+
+use strict;
+use warnings;
+use diagnostics;
+
+use Crypt::SSSS;
+use Data::Printer colored => 1, caller_info => 1, print_escapes => 1;
+use Getopt::Long  qw(:config no_ignore_case gnu_getopt auto_help auto_version);;
+use Pod::Usage    qw(pod2usage);
+use MIME::Base64;
+use Crypt::Primes qw(maurer);
+use File::Basename;
+use Try::Tiny;
+
+my  @PROGARG = ($0, @ARGV);
+my  $PROGNAM = fileparse($0);
+our $VERSION = '0.5';
+
+my $caller_message = "Printing in line __LINE__ of __FILENAME__; ";
+my $k = 3;
+my $b; # prime bitsize
+my $p; # prime, Crypt::SSSS default is 527
+my $n; # default: equals to k
+my @m = ();
+my $d = 0; # to ssss_distribute
+my $r = 0; # to ssss_reconstruct
+my $s = 0; # to save shares
+my $v = 0;
+my @I = (); # cunks/files index/es to reconstruct secret from
+my $i;
+my $P = '';
+
+my $getopt_result =
+  GetOptions (
+	      'b|prime-bits=i'    => \$b,
+	      'd|distribute'      => \$d,
+	      'h|help'            => sub { pod2usage(-exitval => 0, -verbose => 2); exit 0 },
+	      'i|indexes=i'       => \@I,
+	      'k|threshold=i'     => \$k,
+	      'm|message=s'       => \@m,
+	      'n|num-of-shares=i' => \$n,
+	      'p|prime-number=i'  => \$p,
+	      'r|reconstruct'     => \$r,
+	      's|save'            => \$s,
+	      'v|verbose+'        => \$v,
+	      'P|prefix=s'        => \$P,
+	      'V|version'         => sub { print "$PROGNAM, version $VERSION\n"; exit 0 },
+    );
+
+### VALIDATION & INITIALISATION
+$n = $k if ! defined $n;
+
+if ( ! $d && ! $r ) {
+  print "ERROR: you should provide -d or -r\n";
+  pod2usage(-exitval => 0, -verbose => 2);
+  exit 2;
+}
+
+if ( $d && $r ) {
+  print "ERROR: you should provide only one, either -d or -r\n";
+  pod2usage(-exitval => 0, -verbose => 2);
+  exit 2;
+}
+
+if ( ! scalar @m && ! $s ) {
+  print "ERROR: neither -m (message) has been provided, no -s (to reconstruct from files)\n";
+  pod2usage(-exitval => 0, -verbose => 2);
+  exit 2;
+}
+
+p(@m, caller_message => $caller_message . "message/s:\n")
+  if scalar @m && $v > 2;
+
+if ( defined $b && defined $p ) {
+  print "ERROR: you can provide only -b or -p\n";
+  exit 2;
+} elsif ( ! defined $b && ! defined $p ) {
+  $b = 16;
+}
+if ( ! defined $p ) {
+  $p = maurer ( Size => $b, Verbosity => $v );
+  print 'Prime bit/s: ', $b, "\n" if $v;
+}
+print 'Prime      : ', $p, "\n" if $v;
+
+if ( ! scalar @I ) {
+  $i = $k;
+  while ( $i ) {
+    push @I, $i--;
+  }
+  p @I if $v > 3;
+}
+
+my $fn;
+
+### DISTRIBUTE
+my ( @sh, $to_b64, $b64);
+if ( $d ) {
+  my $message = join('', @m);
+  p($message, $caller_message . "secret to distribute/split\n") if $v > 2;
+  my $shares = ssss_distribute( message => $message, k => $k, n => $n, p => $p );
+  p $shares if $v > 3;
+
+  foreach ( sort( keys (%{$shares})) ) {
+    $to_b64 = $shares->{$_}->binary;
+    p $to_b64 if $v > 2;
+    $b64  = encode_base64( $to_b64, '' );
+    push @sh, sprintf("%03s-%s", $_, $b64 );
+
+    if ( $s ) {
+      $fn = sprintf("%s%03i.dat", $P, $_);
+      open my $fh, '>', $fn || do { print "\nERROR: Can't open > $fn: $!\n"; exit 2; };
+      print $fh $to_b64;
+      close $fh || do { print "\nERROR: Can't close file $fn: $!\n"; exit 2; };
+    }
+  }
+
+  print "$_\n" foreach ( @sh );
+}
+
+### RECONSTRUCT
+if ( $r ) {
+
+  my $rshare = {};
+  $i = 1;
+  if ( $s ) {
+    foreach ( @I ) {
+      $fn = sprintf("%s%03i.dat", $P, $_);
+      open my $fh, '<', $fn or do { print "\nERROR: Can't open < $fn (is prefix needed?): $!\n"; exit 2; };
+      $rshare->{$_} = do {
+        local $/; # slurp!
+        <$fh>;
+      };
+      close $fh || do { print "\nERROR: Can't close file $fn: $!\n"; exit 2; };
+    }
+  } else {
+    %{$rshare} = map { int(substr( $_, 0, 3 )) => decode_base64(substr( $_, 4 )) } sort @m;
+  }
+
+  p($rshare, caller_message => $caller_message . "hash to reconstruct secret from\n") if $v > 3; # be carefull
+
+  my $message = '';
+  my $err;
+  try { $message = join('', map { chr($_) }
+			unpack ( 'C*', ssss_reconstruct(p => $p, shares => $rshare) ));
+      } catch {
+	$err = $_;
+      };
+
+  if ( defined $err ) {
+    p $err if $v;
+    print "\nERROR: wrong reconstruction option/s\n";
+    exit 2;
+  }
+
+  if ( $v ) {
+    print "Secret     : $message\n";
+  } else {
+    print "$message\n";
+  }
+
+}
+
+__END__
+
+=head1 NAME
+
+sssstool
+
+=head1 SYNOPSIS
+
+sssstool [-h] <-d | -r> <-m ... | -s> OPTIONS
+
+script to split or encode a secret into a number of shared keys using
+Shamir's Secret Sharing Scheme.
+
+Generated keys can be printed to stdout (default) and can be stored to
+files I<-s>, which in turn are named this way: `prefixXXX.dat`, where
+`prefix` can be set with I<-P> and `XXX` is a chunk file index number
+prefixed with `0`
+
+inspired by:
+
+L<http://point-at-infinity.org/ssss/>
+L<https://github.com/gburca/ssss-js>
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-b | --prime-bits> I<NUMBER>
+
+bitsize of a random prime, to calculate against
+
+=item B<-d | --distribute>
+
+to do distribution (split)
+
+=item B<-r | --reconstruct>
+
+to do reconstruction from chunks, message was distributed on
+
+=item B<-k | --threshold> I<NUMBER>
+
+Threshold value determines the minimum number of shares required to
+reconstruct the secret. It must be less than or equal to
+I<--num-of-shares> the number of shares.
+
+=item B<-p | --prime-number> I<NUMBER>
+
+the very prime
+
+=item B<-i | --indexes> I<NUMBER>
+
+indexes of files (index part of the name) to reconstruct secret from
+
+=item B<-P | --prefix> I<STRING>
+
+chunk file, name prefix, the distribution to be saved to
+
+=item B<-n | --num-of-shares> I<NUMBER>
+
+how many shares will be generated. 
+
+=item B<-m | --message> I<STRING>
+
+message (secret) to distribute (split)
+
+=item B<-s | --save>
+
+to save or read chunks to/from separate file/s
+
+=item B<-v | --verbose>
+
+be verbose
+
+=item B<-h | --help>
+
+help message
+
+=back
+
+=head1 EXAMPLE
+
+    sssstool -d -k 3 -n 5 -m 'the ' -m 'very' -m ' secret' -m '!' -s -P test- -v -v
+
+    sssstool -r -m 005-DFkMSwXvDBcNvwAh -m 003-BTkFDwL9BR0FtQAh -m 001-AUEA+wELATsBSwAh -v -v
+
+    sssstool -r -v -v -s -P test- -i 5 -i 1 -i 3 -s -P test-
+
+=head1 SEE ALSO
+
+L<Crypt::SSSS>
+
+=head1 AUTHOR
+
+Zeus Panchenko <zeus@gnu.org.ua>
+
+=head1 COPYRIGHT
+
+Copyright 2020 Zeus Panchenko.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
