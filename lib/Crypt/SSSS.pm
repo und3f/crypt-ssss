@@ -10,6 +10,8 @@ require Exporter;
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(ssss_distribute ssss_reconstruct);
 
+our $err;
+
 use POSIX qw(ceil pow);
 use Crypt::SSSS::Message;
 
@@ -21,9 +23,9 @@ sub ssss_distribute(%) {
     my $message = $data{message} or Carp::croak 'Missed "message" argument';
 
     my $k = $data{k} or Carp::croak 'Missed "k" argument';
-    my $n = $data{n} || $k;
+    my $n = $data{n} // $k;
 
-    my $p = $data{p} || 257;
+    my $p = $data{p};
 
     my $shares = {};
 
@@ -39,7 +41,7 @@ sub ssss_distribute(%) {
         $chunks = $message->get_data;
     }
     else {
-        $chunks = [unpack (($data{pack_size} || 'C') . '*', $message)];
+        $chunks = [unpack (($data{pack_size} // 'C') . '*', $message)];
     }
     while (@$chunks) {
         my @a = splice @$chunks, 0, $k;
@@ -48,7 +50,7 @@ sub ssss_distribute(%) {
 
             my $res = 0;
             for my $pow (0 .. $k - 1) {
-                $res += ($a[$pow] || 0) * pow($x, $pow);
+                $res += ($a[$pow] // 0) * pow($x, $pow);
 
             }
 
@@ -64,29 +66,25 @@ sub ssss_reconstruct(%) {
     my (%data) = @_;
 
     my $shares = $data{shares};
-    my $p = $data{p} || '257';
+    my $p      = $data{p};
 
     my @xs = keys %$shares;
-    my $k = @xs;
+    my $k  = scalar @xs;
 
-    my %mdata;
-    foreach my $x (@xs) {
-        $mdata{$x} =
-          Crypt::SSSS::Message->build_from_binary($p, $shares->{$x})
-          ->get_data;
-    }
+    my %mdata =
+	map { $_ => Crypt::SSSS::Message->build_from_binary($p, $shares->{$_})->get_data } @xs;
 
-    my $size = $data{size} || @{(values %mdata)[0]};
+    my $size = $data{size} // @{(values %mdata)[0]};
 
     my $message = '';
 
-    my $pack_size = $data{pack_size} || 'C';
+    my $pack_size = $data{pack_size} // 'C';
 
     for (my $l = 0; $l < $size; $l++) {
         my @fx = ();
         for my $i (@xs) {
 
-            # Plynom
+            # Polynom
             my @pl = (1);
 
             # Divider
@@ -123,9 +121,10 @@ sub ssss_reconstruct(%) {
             $_ += $p if $_ < 0;
         }
 
-        for (my $i = 0; $i < $k; $i++) {
-            $message .= pack $pack_size, $fx[$i];
-        }
+	for (my $i = 0; $i < $k; $i++) {
+	    next if $fx[$i] < 0 || $fx[$i] > 255;
+	    $message .= pack $pack_size, $fx[$i];
+	}
     }
 
     $message;
@@ -144,6 +143,7 @@ sub extended_gcb {
 }
 
 1;
+
 __END__
 
 =head1 NAME
@@ -224,10 +224,6 @@ Sergey Zasenko, C<undef@cpan.org>.
 =item Mohammad S Anwar (MANWAR)
 
 =back
-
-=head1 REPOSITORY
-
-L<https://github.com/und3f/crypt-ssss>
 
 =head1 COPYRIGHT AND LICENSE
 

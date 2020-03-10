@@ -19,7 +19,6 @@ my  @PROGARG = ($0, @ARGV);
 my  $PROGNAM = fileparse($0);
 our $VERSION = '0.5';
 
-my $caller_message = "Printing in line __LINE__ of __FILENAME__; ";
 my $k = 3;
 my $b; # prime bitsize
 my $p; # prime, Crypt::SSSS default is 527
@@ -71,8 +70,7 @@ if ( ! scalar @m && ! $s ) {
   exit 2;
 }
 
-print Dumper( @m )
-  if scalar @m && $v > 2;
+print Dumper( @m ) if scalar @m && $v > 2;
 
 if ( defined $b && defined $p ) {
   print "ERROR: you can provide only -b or -p\n";
@@ -81,16 +79,14 @@ if ( defined $b && defined $p ) {
   $b = 16;
 }
 if ( ! defined $p ) {
-  $p = maurer ( Size => $b, Verbosity => $v );
+  $p = maurer ( Size => $b, Verbosity => $v > 2 ? 1 : 0 );
   print 'Prime bit.s: ', $b, "\n" if $v;
 }
-print 'Prime      : ', $p, "\n" if $v;
+print 'Prime num. : ', $p, "\n" if $v;
 
 if ( ! scalar @I ) {
   $i = $k;
-  while ( $i ) {
-    push @I, $i--;
-  }
+  push @I, $i-- while ( $i );
   print Dumper( @I ) if $v > 3;
 }
 
@@ -144,15 +140,15 @@ if ( $r ) {
 
   my $message = '';
   my $err;
-  try { $message = join('', map { chr($_) }
+  $message = try { join('', map { chr($_) }
 			unpack ( 'C*', ssss_reconstruct(p => $p, shares => $rshare) ));
       } catch {
 	$err = $_;
       };
 
   if ( defined $err ) {
-    print Dumper( $err ) if $v;
-    print "\nERROR: wrong reconstruction option/s\n";
+    print "sssstool catch: unpack exception on reconstruct attempt: ", Dumper( $err ) if $v;
+    print "\nERROR: unpack failed, wrong option/s for reconstruct\n";
     exit 2;
   }
 
