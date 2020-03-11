@@ -49,6 +49,8 @@ my $getopt_result =
 	      'V|version'         => sub { print "$PROGNAM, version $VERSION\n"; exit 0 },
     );
 
+print " Invocation: ", join(' ', @PROGARG), "\n" if $v;
+
 ### VALIDATION & INITIALISATION
 $n = $k if ! defined $n;
 
