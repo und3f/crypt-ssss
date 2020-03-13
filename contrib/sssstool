@@ -11,9 +11,14 @@ use Data::Dumper;
 use Getopt::Long  qw(:config no_ignore_case gnu_getopt auto_help auto_version);;
 use Pod::Usage    qw(pod2usage);
 use MIME::Base64;
-use Crypt::Primes qw(maurer);
 use File::Basename;
 use Try::Tiny;
+
+my $is_crypt_primes = eval {
+  require Crypt::Primes; # qw(maurer);
+  Crypt::Primes->import( qw(maurer) );
+  1;
+  };
 
 my  @PROGARG = ($0, @ARGV);
 my  $PROGNAM = fileparse($0);
@@ -77,10 +82,12 @@ print Dumper( @m ) if scalar @m && $v > 2;
 if ( defined $b && defined $p ) {
   print "ERROR: you can provide only -b or -p\n";
   exit 2;
-} elsif ( ! defined $b && ! defined $p ) {
+} elsif ( ! defined $b && ! defined $p && $is_crypt_primes ) {
   $b = 16;
+} elsif ( ! defined $b && ! defined $p && ! $is_crypt_primes ) {
+  $p = 527;
 }
-if ( ! defined $p ) {
+if ( ! defined $p && $is_crypt_primes ) {
   $p = maurer ( Size => $b, Verbosity => $v > 2 ? 1 : 0 );
   print 'Prime bit.s: ', $b, "\n" if $v;
 }
@@ -251,7 +258,9 @@ help message
 
 =head1 SEE ALSO
 
-L<Crypt::SSSS>
+L<Crypt::SSSS> 
+
+L<https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing>
 
 =head1 AUTHOR
 
