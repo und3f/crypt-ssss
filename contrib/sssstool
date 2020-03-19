@@ -33,9 +33,10 @@ my $d = 0; # to ssss_distribute
 my $r = 0; # to ssss_reconstruct
 my $s = 0; # to save shares
 my $v = 0;
-my @I = (); # cunks/files index/es to reconstruct secret from
+my @I = (); # chunks/files index/es to reconstruct secret from
 my $i;
 my $P = '';
+my $l; # Original length.
 
 my $getopt_result =
   GetOptions (
@@ -44,6 +45,7 @@ my $getopt_result =
 	      'h|help'            => sub { pod2usage(-exitval => 0, -verbose => 2); exit 0 },
 	      'i|indexes=i'       => \@I,
 	      'k|threshold=i'     => \$k,
+	      'l|length=n'        => \$l,
 	      'm|message=s'       => \@m,
 	      'n|num-of-shares=i' => \$n,
 	      'p|prime-number=i'  => \$p,
@@ -154,7 +156,7 @@ if ( $r ) {
 
   my $message = '';
   my $err;
-  $message = try { ssss_reconstruct(p => $p, shares => $rshare); } catch { $err = $_; };
+  $message = try { ssss_reconstruct(p => $p, shares => $rshare, length => $l); } catch { $err = $_; };
 
   if ( defined $err ) {
     print "sssstool catch: unpack exception on reconstruct attempt: ", Dumper( $err ) if $v;
