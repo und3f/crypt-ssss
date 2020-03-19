@@ -12,8 +12,8 @@ sub new {
     Carp::croak('Missed "p" argument') unless $args{p};
 
     bless {
-        _data => $args{data} // [],
-        _p    => $args{p}    // 257,
+        _data => $args{data} || [],
+        _p    => $args{p},
         _size => _determine_chunk_size($args{p} - 1)
     }, $class;
 }
@@ -27,6 +27,7 @@ sub build_from_binary {
     my $rsize = 0;
 
     my @chunks = unpack 'C*', $string;
+
     my $size = $self->{_size};
 
     my $smask = 0;
