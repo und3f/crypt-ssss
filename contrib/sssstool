@@ -8,7 +8,7 @@ use diagnostics;
 
 use Crypt::SSSS;
 use Data::Dumper;
-use Getopt::Long  qw(:config no_ignore_case gnu_getopt auto_help auto_version);;
+use Getopt::Long  qw(:config no_ignore_case auto_help auto_version);;
 use Pod::Usage    qw(pod2usage);
 use MIME::Base64;
 use File::Basename;
@@ -52,7 +52,12 @@ my $getopt_result =
 	      'v|verbose+'        => \$v,
 	      'P|prefix=s'        => \$P,
 	      'V|version'         => sub { print "$PROGNAM, version $VERSION\n"; exit 0 },
-    );
+	     );
+
+if ( ! $getopt_result ) {
+  print "$getopt_result\n\n";
+  exit 2;
+}
 
 print " Invocation: ", join(' ', @PROGARG), "\n" if $v;
 
@@ -149,11 +154,7 @@ if ( $r ) {
 
   my $message = '';
   my $err;
-  $message = try { join('', map { chr($_) }
-			unpack ( 'C*', ssss_reconstruct(p => $p, shares => $rshare) ));
-      } catch {
-	$err = $_;
-      };
+  $message = try { ssss_reconstruct(p => $p, shares => $rshare); } catch { $err = $_; };
 
   if ( defined $err ) {
     print "sssstool catch: unpack exception on reconstruct attempt: ", Dumper( $err ) if $v;
@@ -254,7 +255,7 @@ help message
 
     sssstool -r -m 005-DFkMSwXvDBcNvwAh -m 003-BTkFDwL9BR0FtQAh -m 001-AUEA+wELATsBSwAh -v -v
 
-    sssstool -r -v -v -s -P test- -i 5 -i 1 -i 3 -s -P test-
+    sssstool -r -v -v -s -P test- -i 5 -i 1 -i 3
 
 =head1 SEE ALSO
 
