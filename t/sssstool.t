@@ -23,28 +23,23 @@ sub runtool {
     my $err = do { local $/; <$fherr> };
     waitpid($pid, 0);
     my $status = $? >> 8;
-    die "$?" if $?;
-    die $err if $err;
+    if ($? || $err) {
+        die "error: \"$err\", status $?"
+    }
     return @out;
 }
 
-sub runtest {
-    my @result = runtool(qw(-d -k 3 -n 5 -P test-),
-			 map { ('-m', $_) } @_);
-    return runtool('-r', '-l', length(join('',@_)), map { ('-m', $_) } @result);
-}
-
 my @message = ('the ', 'very', ' secret', '!');
-my @hashes = qw(001-UE+0LTtSwhA=
-                002-MkkXkLo/QhA=
-                003-Rs8TuP9lwhA=
-                004-CgDA4gpCghA=
-                005-g6AHRcxZQhA=);
+my @hashes = qw(001-ID7BQ6JQhA==
+                002-ayecbHBIhA==
+                003-GgKfYYWAhA==
+                004-LhAKQvHohA==
+                005-Jo/dQLWQhA==);
 
-is_deeply([runtool(qw(-d -k 3 -n 5 -P test-), map { ('-m', $_) } @message)],
+is_deeply([runtool(qw(-d -k 3 -n 5 -p 257), map { ('-m', $_) } @message)],
           [@hashes],
 	  'encrypt');
-is_deeply([runtool('-r', '-l', length(join('',@message)),
+is_deeply([runtool('-r', '-p', 257, '-l', length(join('',@message)),
 		   map { ('-m', $_) } @hashes)],
 	  [join('',@message)],
 	  'decrypt');
