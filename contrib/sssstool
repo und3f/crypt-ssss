@@ -22,7 +22,7 @@ my $is_crypt_primes = eval {
 
 my  @PROGARG = ($0, @ARGV);
 my  $PROGNAM = fileparse($0);
-our $VERSION = '0.5';
+our $VERSION = '0.6';
 
 my $k = 3;
 my $b; # prime bitsize
@@ -36,7 +36,6 @@ my $v = 0;
 my @I = (); # chunks/files index/es to reconstruct secret from
 my $i;
 my $P = '';
-my $l; # Original length.
 
 my $getopt_result =
   GetOptions (
@@ -45,7 +44,6 @@ my $getopt_result =
 	      'h|help'            => sub { pod2usage(-exitval => 0, -verbose => 2); exit 0 },
 	      'i|indexes=i'       => \@I,
 	      'k|threshold=i'     => \$k,
-	      'l|length=n'        => \$l,
 	      'm|message=s'       => \@m,
 	      'n|num-of-shares=i' => \$n,
 	      'p|prime-number=i'  => \$p,
@@ -143,8 +141,8 @@ if ( $r ) {
       $fn = sprintf("%s%03i.dat", $P, $_);
       open my $fh, '<', $fn or do { print "\nERROR: Can't open < $fn (is prefix needed?): $!\n"; exit 2; };
       $rshare->{$_} = do {
-        local $/; # slurp!
-        <$fh>;
+	local $/; # slurp!
+	<$fh>;
       };
       close $fh || do { print "\nERROR: Can't close file $fn: $!\n"; exit 2; };
     }
@@ -156,7 +154,7 @@ if ( $r ) {
 
   my $message = '';
   my $err;
-  $message = try { ssss_reconstruct(p => $p, shares => $rshare, length => $l); } catch { $err = $_; };
+  $message = try { ssss_reconstruct(p => $p, shares => $rshare); } catch { $err = $_; };
 
   if ( defined $err ) {
     print "sssstool catch: unpack exception on reconstruct attempt: ", Dumper( $err ) if $v;
@@ -231,7 +229,7 @@ chunk file, name prefix, the distribution to be saved to
 
 =item B<-n | --num-of-shares> I<NUMBER>
 
-how many shares will be generated. 
+how many shares will be generated.
 
 =item B<-m | --message> I<STRING>
 
@@ -261,7 +259,7 @@ help message
 
 =head1 SEE ALSO
 
-L<Crypt::SSSS> 
+L<Crypt::SSSS>
 
 L<https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing>
 

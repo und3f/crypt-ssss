@@ -14,7 +14,7 @@ sub runtool {
     my ($fhout,$fherr) = (gensym,gensym);
 
     my $pid = open3($nullin, $fhout, $fherr,
-	            'perl', $toolname, @_);
+		    'perl', $toolname, @_);
     my @out;
     while (<$fhout>) {
 	chomp;
@@ -24,22 +24,21 @@ sub runtool {
     waitpid($pid, 0);
     my $status = $? >> 8;
     if ($? || $err) {
-        die "error: \"$err\", status $?"
+	die "error: \"$err\", status $?"
     }
     return @out;
 }
 
 my @message = ('the ', 'very', ' secret', '!');
 my @hashes = qw(001-ID7BQ6JQhA==
-                002-ayecbHBIhA==
-                003-GgKfYYWAhA==
-                004-LhAKQvHohA==
-                005-Jo/dQLWQhA==);
+		002-ayecbHBIhA==
+		003-GgKfYYWAhA==
+		004-LhAKQvHohA==
+		005-Jo/dQLWQhA==);
 
 is_deeply([runtool(qw(-d -k 3 -n 5 -p 257), map { ('-m', $_) } @message)],
-          [@hashes],
+	  [@hashes],
 	  'encrypt');
-is_deeply([runtool('-r', '-p', 257, '-l', length(join('',@message)),
-		   map { ('-m', $_) } @hashes)],
+is_deeply([runtool(qw(-r -p 257), map { ('-m', $_) } @hashes)],
 	  [join('',@message)],
 	  'decrypt');

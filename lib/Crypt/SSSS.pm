@@ -65,8 +65,7 @@ sub ssss_reconstruct(%) {
 
     my $shares = $data{shares};
     my $p = $data{p} || '257';
-    my $orig_len = $data{length};
-    
+
     my @xs = keys %$shares;
     my $k = @xs;
 
@@ -82,13 +81,6 @@ sub ssss_reconstruct(%) {
     my $message = '';
 
     my $pack_size = $data{pack_size} || 'C';
-
-    my $n;  # Actual size of each decoded chunk (without zero padding).
-    my $n0; # Actual size of the last decoded chunk.
-    if ($orig_len) {
-	$n = int(($orig_len + $size - 1) / $size);
-	$n0 = $n - ($n * $size - $orig_len);
-    }
 
     for (my $l = 0; $l < $size; $l++) {
         my @fx = ();
@@ -131,10 +123,6 @@ sub ssss_reconstruct(%) {
             $_ += $p if $_ < 0;
         }
 
-	if ($n) {
-	    $k = ($l < $size-1) ? $n : $n0;
-	}
-	
         for (my $i = 0; $i < $k; $i++) {
             $message .= pack $pack_size, $fx[$i];
         }
@@ -219,12 +207,11 @@ Returns hashref of Crypt::SSSS::Message.
 
     my $secret = ssss_reconstruct(
         shares => $shares,
-        length => $len
         p      => $p,        # 257 by default
     );
 
 Reconstruct message from given C<$shares>. C<$p> is a prime number used to
-distribute message.  C<$length> is the length of the original secret.
+distribute message.
 
 =head1 AUTHOR
 
@@ -237,6 +224,10 @@ Sergey Zasenko, C<undef@cpan.org>.
 =item Mohammad S Anwar (MANWAR)
 
 =back
+
+=head1 REPOSITORY
+
+L<https://github.com/und3f/crypt-ssss>
 
 =head1 COPYRIGHT AND LICENSE
 
