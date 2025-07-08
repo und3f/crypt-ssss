@@ -1,0 +1,28 @@
+name: build-and-test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+      - uses: und3f/ci-perl-tester-helpers/install-test-helper-deps@patch-1
+      - uses: perl-actions/ci-perl-tester-helpers/cpan-install-build-deps@main
+      - uses: perl-actions/ci-perl-tester-helpers/build-dist@main
+      - uses: perl-actions/ci-perl-tester-helpers/cpan-install-dist-deps@main
+      - uses: perl-actions/ci-perl-tester-helpers/test-dist@main
+        env:
+          AUTHOR_TESTING: 1
