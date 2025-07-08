@@ -19,7 +19,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      - uses: perl-actions/ci-perl-tester-helpers/install-test-helper-deps@main
+      - uses: und3f/ci-perl-tester-helpers/install-test-helper-deps@patch-1
       - uses: perl-actions/ci-perl-tester-helpers/cpan-install-build-deps@main
       - uses: perl-actions/ci-perl-tester-helpers/build-dist@main
       - uses: perl-actions/ci-perl-tester-helpers/cpan-install-dist-deps@main
