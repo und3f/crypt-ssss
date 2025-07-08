@@ -30,15 +30,27 @@ sub runtool {
 }
 
 my @message = ('the ', 'very', ' secret', '!');
-my @hashes = qw(001-ID7BQ6JQhA==
-		002-ayecbHBIhA==
-		003-GgKfYYWAhA==
-		004-LhAKQvHohA==
-		005-Jo/dQLWQhA==);
+
+my @hashes = qw(
+		 001-ADsfZPfA5So=
+		 002-ACWPYqTDZWw=
+		 003-AAPc73AJBa4=
+		 004-ABYHq0GhzfA=
+		 005-ABwP5iGBuDA=
+	      );
+
+my @rhashes = qw(
+		 002-ACWPYqTDZWw=
+		 003-AAPc73AJBa4=
+		 004-ABYHq0GhzfA=
+	      );
 
 is_deeply([runtool(qw(-d -k 3 -n 5 -p 257), map { ('-m', $_) } @message)],
 	  [@hashes],
 	  'encrypt');
-is_deeply([runtool(qw(-r -p 257), map { ('-m', $_) } @hashes)],
+
+is_deeply([runtool(qw(-r -p 257), map { ('-m', $_) } @rhashes)],
 	  [join('',@message)],
 	  'decrypt');
+
+done_testing;

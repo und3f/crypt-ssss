@@ -61,7 +61,9 @@ if ( ! $getopt_result ) {
 
 print " Invocation: ", join(' ', @PROGARG), "\n" if $v;
 
-### VALIDATION & INITIALISATION
+###############################
+# VALIDATION & INITIALISATION #
+###############################
 $n = $k if ! defined $n;
 
 if ( ! $d && ! $r ) {
@@ -106,10 +108,13 @@ if ( ! scalar @I ) {
 
 my $fn;
 
-### DISTRIBUTE
-my ( @sh, $to_b64, $b64);
+##############
+# DISTRIBUTE #
+##############
+my ( @sh, $to_b64, $b64, $msg, $message, $msg_len);
 if ( $d ) {
-  my $message = join('', @m);
+  $msg = join('', @m);
+  $message = pack('N', length($msg)) . $msg;
   print Dumper( $message ) if $v > 2;
   my $shares = ssss_distribute( message => $message, k => $k, n => $n, p => $p );
   print Dumper( $shares ) if $v > 3;
@@ -118,7 +123,7 @@ if ( $d ) {
     $to_b64 = $shares->{$_}->binary;
     print Dumper( $to_b64 ) if $v > 2;
     $b64  = encode_base64( $to_b64, '' );
-    push @sh, sprintf("%03s-%s", $_, $b64 );
+    push @sh, sprintf("%03s-%s", $_, $b64 ); # hardcode with 3 char padding
 
     if ( $s ) {
       $fn = sprintf("%s%03i.dat", $P, $_);
@@ -131,8 +136,20 @@ if ( $d ) {
   print "$_\n" foreach ( @sh );
 }
 
-### RECONSTRUCT
-if ( $r ) {
+###############
+# RECONSTRUCT #
+###############
+
+# The Problem
+#
+# Crypt::SSSS works with fixed-size blocks internally. When a message doesn't
+# fill the block size completely, the module pads it with null bytes to reach
+# the required block boundary. During reconstruction, these padding null bytes
+# are included in the result.
+#
+# We need to handle the padding removal ourselves.
+
+  if ( $r ) {
 
   my $rshare = {};
   $i = 1;
@@ -147,7 +164,13 @@ if ( $r ) {
       close $fh || do { print "\nERROR: Can't close file $fn: $!\n"; exit 2; };
     }
   } else {
-    %{$rshare} = map { int(substr( $_, 0, 3 )) => decode_base64(substr( $_, 4 )) } sort @m;
+    ### %{$rshare} = map { int(substr( $_, 0, 3 )) => decode_base64(substr( $_, 4 )) } sort @m;
+    %{$rshare} = map {
+      my $index = int(substr($_, 0, 3));
+      my $b64_data = substr($_, 4);
+      my $binary_data = decode_base64($b64_data);
+      ($index => $binary_data);
+    } @m;
   }
 
   print Dumper( $rshare ) if $v > 3; # be carefull
@@ -155,6 +178,10 @@ if ( $r ) {
   my $message = '';
   my $err;
   $message = try { ssss_reconstruct(p => $p, shares => $rshare); } catch { $err = $_; };
+
+  # Extract original message using stored length
+  $msg_len = unpack('N', substr($message, 0, 4));
+  $message = substr($message, 4, $msg_len);
 
   if ( defined $err ) {
     print "sssstool catch: unpack exception on reconstruct attempt: ", Dumper( $err ) if $v;
@@ -174,102 +201,263 @@ __END__
 
 =head1 NAME
 
-sssstool
+sssstool - split or reconstruct secrets using Shamir's Secret Sharing Scheme
 
 =head1 SYNOPSIS
 
-sssstool [-h] <-d | -r> <-m ... | -s> OPTIONS
+    sssstool <-d | -r> [OPTIONS]
 
-script to split or encode a secret into a number of shared keys using
-Shamir's Secret Sharing Scheme.
+    # Distribution examples:
+    sssstool -d -k 3 -n 5 -m "my secret" -v
+    sssstool -d -k 2 -n 3 -m "part1" -m "part2" -s -P backup-
 
-Generated keys can be printed to stdout (default) and can be stored to
-files I<-s>, which in turn are named this way: `prefixXXX.dat`, where
-`prefix` can be set with I<-P> and `XXX` is a chunk file index number
-prefixed with `0`
+    # Reconstruction examples:
+    sssstool -r -m "001-base64data" -m "002-base64data" -m "003-base64data"
+    sssstool -r -s -P backup- -i 1 -i 3 -v
 
-inspired by:
+=head1 DESCRIPTION
 
-L<http://point-at-infinity.org/ssss/>
-L<https://github.com/gburca/ssss-js>
+B<sssstool> is a command-line utility for splitting secrets into multiple shares
+and reconstructing them using Shamir's Secret Sharing Scheme (SSSS). This
+cryptographic technique allows you to split a secret into N shares, where any
+K shares are sufficient to reconstruct the original secret, but K-1 shares
+reveal no information about the secret.
 
-=head1 OPTIONS
+The tool supports two modes of operation:
 
 =over 4
 
-=item B<-b | --prime-bits> I<NUMBER>
+=item * B<Distribution mode> (-d): Splits a secret into multiple shares
 
-bitsize of a random prime, to calculate against
-
-=item B<-d | --distribute>
-
-to do distribution (split)
-
-=item B<-r | --reconstruct>
-
-to do reconstruction from chunks, message was distributed on
-
-=item B<-k | --threshold> I<NUMBER>
-
-Threshold value determines the minimum number of shares required to
-reconstruct the secret. It must be less than or equal to
-I<--num-of-shares> the number of shares.
-
-=item B<-p | --prime-number> I<NUMBER>
-
-the very prime
-
-=item B<-i | --indexes> I<NUMBER>
-
-indexes of files (index part of the name) to reconstruct secret from
-
-=item B<-P | --prefix> I<STRING>
-
-chunk file, name prefix, the distribution to be saved to
-
-=item B<-n | --num-of-shares> I<NUMBER>
-
-how many shares will be generated.
-
-=item B<-m | --message> I<STRING>
-
-message (secret) to distribute (split)
-
-=item B<-s | --save>
-
-to save or read chunks to/from separate file/s
-
-=item B<-v | --verbose>
-
-be verbose
-
-=item B<-h | --help>
-
-help message
+=item * B<Reconstruction mode> (-r): Reconstructs the original secret from shares
 
 =back
 
-=head1 EXAMPLE
+Shares can be output as base64-encoded strings to stdout or saved to individual
+files for secure storage and distribution.
 
-    sssstool -d -k 3 -n 5 -m 'the ' -m 'very' -m ' secret' -m '!' -s -P test- -v -v
+=head1 OPTIONS
 
-    sssstool -r -m 005-DFkMSwXvDBcNvwAh -m 003-BTkFDwL9BR0FtQAh -m 001-AUEA+wELATsBSwAh -v -v
+=head2 Mode Selection (Required)
 
-    sssstool -r -v -v -s -P test- -i 5 -i 1 -i 3
+=over 4
+
+=item B<-d, --distribute>
+
+Enable distribution mode to split a secret into shares.
+
+=item B<-r, --reconstruct>
+
+Enable reconstruction mode to recover the original secret from shares.
+
+=back
+
+=head2 Secret Input/Output
+
+=over 4
+
+=item B<-m, --message> I<STRING>
+
+Message (secret) to distribute in distribution mode, or base64-encoded share
+in reconstruction mode. Can be specified multiple times to concatenate parts
+or provide multiple shares.
+
+Examples:
+    -m "my secret"                    # Single secret
+    -m "part1" -m "part2"            # Concatenated secret
+    -m "001-base64data"              # Share for reconstruction
+
+=item B<-s, --save>
+
+Save shares to separate files during distribution, or read shares from files
+during reconstruction. Files are named using the pattern: I<PREFIX>XXX.dat
+where XXX is a zero-padded 3-digit share index.
+
+=back
+
+=head2 Threshold Parameters
+
+=over 4
+
+=item B<-k, --threshold> I<NUMBER>
+
+Threshold value - the minimum number of shares required to reconstruct the
+secret. Must be less than or equal to the number of shares (-n).
+Default: 3
+
+=item B<-n, --num-of-shares> I<NUMBER>
+
+Total number of shares to generate during distribution.
+Default: same as threshold (-k)
+
+=back
+
+=head2 Prime Number Selection
+
+=over 4
+
+=item B<-p, --prime-number> I<NUMBER>
+
+Specify an exact prime number to use for calculations. Cannot be used with -b.
+Default: 527 (if Crypt::Primes is not available)
+
+=item B<-b, --prime-bits> I<NUMBER>
+
+Bit size for generating a random prime number. Requires Crypt::Primes module.
+Cannot be used with -p.
+Default: 16 (if Crypt::Primes is available)
+
+=back
+
+=head2 File Operations
+
+=over 4
+
+=item B<-P, --prefix> I<STRING>
+
+Prefix for share filenames when using -s option.
+Default: empty string
+
+=item B<-i, --indexes> I<NUMBER>
+
+File indexes to read during reconstruction with -s option. Can be specified
+multiple times to select specific share files.
+Default: reads files 1 through k (threshold value)
+
+=back
+
+=head2 Utility Options
+
+=over 4
+
+=item B<-v, --verbose>
+
+Enable verbose output. Can be specified multiple times to increase verbosity:
+    -v      Basic verbose information
+    -vv     More detailed output
+    -vvv    Debug-level output with data dumps
+
+=item B<-h, --help>
+
+Display this help message and exit.
+
+=item B<-V, --version>
+
+Display version information and exit.
+
+=back
+
+=head1 EXAMPLES
+
+=head2 Basic Distribution and Reconstruction
+
+Split a secret into 5 shares where any 3 are needed for reconstruction:
+
+    sssstool -d -k 3 -n 5 -m "my important secret"
+
+Reconstruct the secret from 3 base64-encoded shares:
+
+    sssstool -r -m "001-ABCD..." -m "003-EFGH..." -m "005-IJKL..."
+
+=head2 File-based Operations
+
+Distribute and save shares to files:
+
+    sssstool -d -k 2 -n 4 -m "classified information" -s -P secure-
+
+This creates files: secure-001.dat, secure-002.dat, secure-003.dat, secure-004.dat
+
+Reconstruct from saved files:
+
+    sssstool -r -s -P secure- -i 1 -i 3 -v
+
+=head2 Multi-part Secrets
+
+Split a secret composed of multiple parts:
+
+    sssstool -d -k 3 -n 5 -m "part1" -m "part2" -m "part3" -s -P backup-
+
+=head2 Custom Prime Numbers
+
+Use a specific prime number:
+
+    sssstool -d -k 3 -n 5 -m "secret" -p 1009
+
+Generate a larger random prime (requires Crypt::Primes):
+
+    sssstool -d -k 3 -n 5 -m "secret" -b 32 -v
+
+=head1 SECURITY CONSIDERATIONS
+
+=over 4
+
+=item * Store shares in separate, secure locations
+
+=item * Use appropriate threshold values (k) for your security requirements
+
+=item * Larger prime numbers provide better security but slower performance
+
+=item * The secret is only as secure as the least secure share
+
+=item * Shares should be transmitted through secure channels
+
+=back
+
+=head1 DEPENDENCIES
+
+=over 4
+
+=item * B<Crypt::SSSS> - Core secret sharing functionality (required)
+
+=item * B<Crypt::Primes> - Random prime generation (optional, for -b option)
+
+=item * B<MIME::Base64> - Base64 encoding/decoding (required)
+
+=item * B<Try::Tiny> - Exception handling (required)
+
+=back
+
+=head1 EXIT STATUS
+
+=over 4
+
+=item * B<0> - Success
+
+=item * B<2> - Error (invalid options, file operations, reconstruction failure)
+
+=back
+
+=head1 LIMITATIONS
+
+=over 4
+
+=item * Share data contains padding and length information
+
+=item * File operations require appropriate filesystem permissions
+
+=item * Prime generation requires Crypt::Primes module
+
+=item * Base64 encoding increases share size by ~33%
+
+=back
 
 =head1 SEE ALSO
 
-L<Crypt::SSSS>
+L<Crypt::SSSS>, L<Crypt::Primes>
 
 L<https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing>
+
+L<http://point-at-infinity.org/ssss/> - Original ssss implementation
+
+L<https://github.com/gburca/ssss-js> - JavaScript implementation
 
 =head1 AUTHOR
 
 Zeus Panchenko <zeus@gnu.org.ua>
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-Copyright 2020 Zeus Panchenko.
+Copyright 2025 Zeus Panchenko.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -278,10 +466,10 @@ any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 =cut
