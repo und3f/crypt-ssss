@@ -7,7 +7,7 @@ use Symbol 'gensym';
 use Test::More tests => 2;
 
 my $toolname =  File::Spec->catfile(dirname($0), File::Spec->updir,
-				    'contrib', 'sssstool');
+				    'bin', 'sssstool');
 
 sub runtool {
     open(my $nullin, '<', File::Spec->devnull);
